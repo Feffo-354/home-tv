@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#07080d">
+<title>TV Home</title>
+<style>
+  :root{
+    --bg:#07080d;
+    --text:#f4f6fb;
+    --muted:rgba(244,246,251,.62);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+  /* 1rem = 16px su uno schermo 1920x1080: tutto scala in base alla TV */
+  html{font-size:12px;font-size:min(.8333vw,1.4815vh);background:var(--bg)}
+  body{
+    height:100vh;overflow:hidden;color:var(--text);background:var(--bg);
+    font-family:"Roboto","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;
+  }
+
+  /* ---------- Sfondo (statico, nessun costo di animazione) ---------- */
+  .bg{
+    position:fixed;top:0;right:0;bottom:0;left:0;z-index:-1;
+    background:
+      radial-gradient(60rem 42rem at 14% 8%, rgba(94,70,255,.30), rgba(94,70,255,0) 60%),
+      radial-gradient(56rem 46rem at 92% 96%, rgba(255,90,120,.18), rgba(255,90,120,0) 60%),
+      radial-gradient(42rem 30rem at 86% 4%, rgba(40,160,255,.15), rgba(40,160,255,0) 60%),
+      linear-gradient(160deg,#0b0d1a 0%,#07080d 55%,#0a0610 100%);
+  }
+
+  /* ---------- Layout ---------- */
+  .app{height:100vh;display:flex;flex-direction:column;padding:3rem 4.5rem 2.2rem}
+  .top{flex:none;height:5.5rem;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center}
+  .logo{width:4.6rem;height:4.6rem;border-radius:1.4rem;display:grid;place-items:center;
+    background:linear-gradient(135deg,#6a5cff,#c04cff);margin-right:1.4rem}
+  .logo svg{width:2.4rem;height:2.4rem;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .greet{font-size:2rem;font-weight:600;letter-spacing:.01em}
+  .greet-sub{font-size:1.2rem;color:var(--muted);margin-top:.2rem}
+  .top-right{display:flex;align-items:center}
+  .clock{text-align:right;margin-left:2.4rem}
+  .time{font-size:3.2rem;font-weight:300;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  .date{font-size:1.2rem;color:var(--muted);margin-top:.5rem}
+
+  .hero-wrap{flex:1;min-height:0;display:flex;margin-top:2rem}
+  .row{flex:none;height:15rem;margin-top:2.2rem;display:grid;grid-template-columns:repeat(5,1fr);grid-gap:1.8rem}
+  .hint{flex:none;margin-top:1.8rem;display:flex;justify-content:center;color:var(--muted);font-size:1.1rem}
+  .hint span{margin:0 1.4rem}
+  .hint b{display:inline-block;padding:.15rem .7rem;margin-right:.5rem;border-radius:.5rem;
+    background:rgba(255,255,255,.1);color:var(--text);font-weight:600;font-size:1rem}
+
+  /* ---------- Focus: solo transform + opacity ---------- */
+  [data-focus]{
+    position:relative;outline:none;border:0;font:inherit;color:inherit;text-align:left;
+    cursor:pointer;background:none;
+    transition:transform .16s cubic-bezier(.2,.7,.2,1);
+    will-change:transform;
+  }
+  [data-focus]::after{
+    content:"";position:absolute;top:-.2rem;right:-.2rem;bottom:-.2rem;left:-.2rem;
+    border-radius:calc(var(--r,1rem) + .2rem);
+    box-shadow:0 0 0 .2rem rgba(255,255,255,.96),0 1.4rem 3.6rem var(--glow,rgba(130,140,255,.5));
+    opacity:0;transition:opacity .16s;pointer-events:none;z-index:3;
+  }
+  [data-focus].is-focus{transform:scale(var(--s,1.07));z-index:2}
+  [data-focus].is-focus::after{opacity:1}
+
+  /* ---------- Tile ---------- */
+  .tile{--r:1.6rem;--s:1.07;border-radius:var(--r)}
+  .tile-bg{
+    position:absolute;top:0;right:0;bottom:0;left:0;border-radius:var(--r);overflow:hidden;
+    background:linear-gradient(145deg,var(--c1),var(--c2));
+  }
+  .tile-bg::before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;
+    background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 48%)}
+  .tile-bg::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:#05060b;
+    opacity:.42;transition:opacity .16s}
+  .tile.is-focus .tile-bg::after{opacity:0}
+  .tile-body{position:relative;z-index:1;height:100%;padding:2rem 2.2rem;display:flex;flex-direction:column;justify-content:space-between}
+  .tile-icon{width:5rem;height:5rem;border-radius:1.4rem;background:rgba(255,255,255,.18);display:grid;place-items:center}
+  .tile-icon svg{width:2.8rem;height:2.8rem;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .tile-name{font-size:1.9rem;font-weight:650;letter-spacing:.01em}
+  .tile-host{font-size:1.1rem;color:rgba(255,255,255,.72);margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ---------- Hero ---------- */
+  .hero{flex:1;--r:2.4rem;--s:1.025;--glow:rgba(255,100,90,.55)}
+  .hero .tile-bg{background:linear-gradient(115deg,#241062 0%,#7a1fa2 48%,#ff5e62 100%)}
+  .hero .tile-bg::after{opacity:.3}
+  .deco{position:absolute;right:3rem;top:50%;width:34rem;height:34rem;margin-top:-17rem}
+  .hero .tile-body{flex-direction:row;align-items:center;justify-content:flex-start;padding:0 5rem}
+  .hero-icon{flex:none;width:9rem;height:9rem;border-radius:2.6rem;background:rgba(255,255,255,.2);display:grid;place-items:center}
+  .hero-icon svg{width:4.6rem;height:4.6rem;fill:#fff}
+  .hero-text{margin-left:3.4rem}
+  .badge{display:inline-block;padding:.45rem 1.2rem;border-radius:99px;background:rgba(255,255,255,.18);
+    font-size:1rem;font-weight:700;letter-spacing:.14em}
+  .hero-title{font-size:4.6rem;font-weight:750;line-height:1.05;margin-top:1.1rem;letter-spacing:-.01em}
+  .hero-host{font-size:1.6rem;color:rgba(255,255,255,.8);margin-top:.8rem}
+  .pill{display:inline-flex;align-items:center;margin-top:2rem;padding:.9rem 2.2rem;border-radius:99px;
+    background:#fff;color:#1a1030;font-weight:700;font-size:1.4rem}
+  .pill svg{width:1.4rem;height:1.4rem;fill:#1a1030;margin-right:.7rem}
+  .hero.unset .hero-host{color:#ffe38a}
+
+  /* ---------- Icon button (impostazioni) ---------- */
+  .icon-btn{--r:50%;--s:1.16;width:4.6rem;height:4.6rem;border-radius:50%;
+    background:rgba(255,255,255,.09);display:grid;place-items:center;border:1px solid rgba(255,255,255,.12)}
+  .icon-btn svg{width:2.3rem;height:2.3rem;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- Pannello impostazioni ---------- */
+  .overlay{
+    position:fixed;top:0;right:0;bottom:0;left:0;z-index:10;display:grid;place-items:center;
+    background:rgba(4,5,10,.84);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s linear .2s;
+  }
+  .overlay.open{opacity:1;visibility:visible;transition:opacity .2s}
+  .panel{
+    width:68rem;max-width:94vw;max-height:94vh;overflow:auto;padding:2.6rem 3rem;border-radius:2rem;
+    background:linear-gradient(160deg,#1e2134,#10121e);border:1px solid rgba(255,255,255,.1);
+    transform:translateY(1.5rem) scale(.97);transition:transform .22s cubic-bezier(.2,.7,.2,1);
+    scrollbar-width:none;
+  }
+  .panel::-webkit-scrollbar{display:none}
+  .overlay.open .panel{transform:none}
+  .panel h2{font-size:2.4rem;font-weight:700}
+  .panel p{font-size:1.2rem;color:var(--muted);margin-top:.6rem;line-height:1.45}
+  .fields{display:grid;grid-template-columns:1fr 1fr;grid-gap:1.3rem 1.5rem;margin-top:1.8rem}
+  .field{--r:1.1rem;--s:1.012;--glow:rgba(120,140,255,.35);
+    border-radius:var(--r);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);padding:.9rem 1.4rem}
+  .field.wide{grid-column:1 / -1}
+  .field.editing{background:rgba(255,255,255,.13)}
+  .field label{display:block;font-size:.95rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem}
+  .field input{width:100%;background:transparent;border:0;outline:none;color:var(--text);font:inherit;font-size:1.5rem;
+    text-overflow:ellipsis}
+  .field input::placeholder{color:rgba(244,246,251,.28)}
+  .btns{display:flex;justify-content:flex-end;margin-top:2rem}
+  .btn{--r:1.2rem;--s:1.05;padding:1rem 2.4rem;border-radius:var(--r);background:rgba(255,255,255,.1);
+    font-size:1.4rem;font-weight:600;text-align:center;margin-left:1.2rem}
+  .btn.primary{background:linear-gradient(135deg,#6a5cff,#b04cff)}
+  .panel-hint{font-size:1.05rem;color:var(--muted);margin-top:1.4rem;text-align:right}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed;left:50%;bottom:5rem;z-index:20;padding:1rem 2.2rem;border-radius:99px;
+    background:rgba(24,26,42,.96);border:1px solid rgba(255,255,255,.12);font-size:1.3rem;
+    opacity:0;transform:translate(-50%,1rem);transition:opacity .2s,transform .2s;pointer-events:none}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ---------- Entrata e uscita ---------- */
+  @keyframes rise{from{opacity:0;transform:translateY(1.6rem)}to{opacity:1;transform:none}}
+  .top,.hero-wrap,.row,.hint{animation:rise .55s cubic-bezier(.2,.7,.2,1) backwards}
+  .hero-wrap{animation-delay:.06s}.row{animation-delay:.14s}.hint{animation-delay:.22s}
+  .app{transition:opacity .18s}
+  body.leaving .app{opacity:0}
+  @media (prefers-reduced-motion:reduce){
+    .top,.hero-wrap,.row,.hint{animation:none}
+    [data-focus],.panel{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<main class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></div>
+      <div>
+        <div class="greet" id="greet">Ciao</div>
+        <div class="greet-sub">Cosa vuoi guardare?</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <button class="icon-btn" id="btn-settings" data-focus data-id="settings" tabindex="-1" aria-label="Impostazioni" style="--glow:rgba(160,170,255,.45)">
+        <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="clock">
+        <div class="time" id="time">--:--</div>
+        <div class="date" id="date">&nbsp;</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero-wrap">
+    <button class="tile hero" id="hero" data-focus data-id="sc" tabindex="-1">
+      <span class="tile-bg">
+        <svg class="deco" viewBox="0 0 400 400" aria-hidden="true">
+          <circle cx="200" cy="200" r="190" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2"/>
+          <circle cx="200" cy="200" r="140" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2"/>
+          <circle cx="200" cy="200" r="90" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="2"/>
+          <path d="M170 140v120l100-60z" fill="#fff" fill-opacity=".16"/>
+        </svg>
+      </span>
+      <span class="tile-body">
+        <span class="hero-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        <span class="hero-text">
+          <span class="badge">IN EVIDENZA</span><br>
+          <span class="hero-title" style="display:block">StreamingCommunity</span>
+          <span class="hero-host" id="hero-host" style="display:block"></span>
+          <span class="pill"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span id="hero-pill">Apri</span></span>
+        </span>
+      </span>
+    </button>
+  </section>
+
+  <section class="row" id="row"></section>
+
+  <footer class="hint">
+    <span><b>&#9664; &#9650; &#9660; &#9654;</b>Naviga</span>
+    <span><b>OK</b>Apri</span>
+    <span><b>Indietro</b>Chiudi / Home</span>
+  </footer>
+</main>
+
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="panel" id="panel" role="dialog" aria-label="Impostazioni">
+    <h2>Impostazioni</h2>
+    <p>Il dominio di StreamingCommunity cambia spesso: premi OK sul campo, scrivi o incolla il nuovo indirizzo e poi premi Salva. Le altre tile si modificano allo stesso modo. Lascia vuoto un campo per tornare al valore predefinito.</p>
+    <div class="fields" id="fields"></div>
+    <div class="btns">
+      <button class="btn" id="b-cancel" data-focus data-id="b-cancel" tabindex="-1">Annulla</button>
+      <button class="btn" id="b-reset" data-focus data-id="b-reset" tabindex="-1">Ripristina</button>
+      <button class="btn primary" id="b-save" data-focus data-id="b-save" tabindex="-1" style="--glow:rgba(176,76,255,.5)">Salva</button>
+    </div>
+    <div class="panel-hint">OK su un campo = scrivi &middot; Indietro = chiudi</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================== Configurazione ================== */
+  var STORE_KEY = 'tvhome.urls.v1';
+
+  var ICONS = {
+    tv:     '<svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+    play:   '<svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="#fff"/></svg>',
+    film:   '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>',
+    music:  '<svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    globe:  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>'
+  };
+
+  // Il primo elemento (sc) non ha URL predefinito: si imposta dal pannello.
+  var SC = { id: 'sc', name: 'StreamingCommunity', url: '' };
+
+  // Tile personalizzabili: cambia nome/URL/colori qui oppure dal pannello Impostazioni.
+  var APPS = [
+    { id: 'youtube', name: 'YouTube',     url: 'https://www.youtube.com/tv',     icon: 'play',  c1: '#ff4057', c2: '#6f0b20', glow: 'rgba(255,64,87,.55)' },
+    { id: 'netflix', name: 'Netflix',     url: 'https://www.netflix.com/browse', icon: 'film',  c1: '#e5202c', c2: '#3d0508', glow: 'rgba(229,32,44,.55)' },
+    { id: 'prime',   name: 'Prime Video', url: 'https://www.primevideo.com',     icon: 'tv',    c1: '#1fb2ee', c2: '#0a2f55', glow: 'rgba(31,178,238,.55)' },
+    { id: 'spotify', name: 'Spotify',     url: 'https://open.spotify.com',       icon: 'music', c1: '#25c45e', c2: '#073d1b', glow: 'rgba(37,196,94,.5)' },
+    { id: 'browser', name: 'Browser',     url: 'https://www.google.com',         icon: 'globe', c1: '#8a96ff', c2: '#23275f', glow: 'rgba(138,150,255,.55)' }
+  ];
+
+  var ALL = [SC].concat(APPS);
+
+  /* ================== Storage ================== */
+  function loadSaved() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      var o = raw ? JSON.parse(raw) : {};
+      return (o && typeof o === 'object') ? o : {};
+    } catch (e) { return {}; }
+  }
+  function persist(o) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(o)); return true; }
+    catch (e) { return false; }
+  }
+  var saved = loadSaved();
+
+  function itemById(id) {
+    for (var i = 0; i < ALL.length; i++) if (ALL[i].id === id) return ALL[i];
+    return null;
+  }
+  function urlFor(item) { return saved[item.id] || item.url || ''; }
+
+  function normalizeUrl(v) {
+    v = (v || '').replace(/^\s+|\s+$/g, '');
+    if (!v) return '';
+    if (/^[a-z][a-z0-9+.\-]*:\/\//i.test(v)) return v;
+    if (/^(intent|market|spotify|vnd\.youtube|netflix|about|mailto|tel):/i.test(v)) return v;
+    return 'https://' + v;
+  }
+  function hostOf(u) {
+    if (!u) return '';
+    try { return new URL(u).hostname.replace(/^www\./, '') || u; }
+    catch (e) { return u; }
+  }
+
+  /* ================== Costruzione UI ================== */
+  var $ = function (id) { return document.getElementById(id); };
+  var appEl = $('app'), heroEl = $('hero'), rowEl = $('row');
+  var overlayEl = $('overlay'), panelEl = $('panel'), fieldsEl = $('fields');
+  var toastEl = $('toast');
+
+  (function buildRow() {
+    var html = '';
+    for (var i = 0; i < APPS.length; i++) {
+      var a = APPS[i];
+      html += '<button class="tile" data-focus data-id="' + a.id + '" tabindex="-1" ' +
+        'style="--c1:' + a.c1 + ';--c2:' + a.c2 + ';--glow:' + a.glow + '">' +
+        '<span class="tile-bg"></span>' +
+        '<span class="tile-body">' +
+          '<span class="tile-icon">' + ICONS[a.icon] + '</span>' +
+          '<span><span class="tile-name" style="display:block">' + a.name + '</span>' +
+          '<span class="tile-host" style="display:block"></span></span>' +
+        '</span></button>';
+    }
+    rowEl.innerHTML = html;
+  })();
+
+  (function buildFields() {
+    var html = '';
+    for (var i = 0; i < ALL.length; i++) {
+      var it = ALL[i];
+      var wide = (i === 0 || it.id === 'browser') ? ' wide' : '';
+      var down = (it.id === 'browser') ? ' data-nav-down="b-save"' : '';
+      var ph = it.url || 'https://indirizzo-del-sito';
+      html += '<div class="field' + wide + '" id="f-' + it.id + '" data-focus data-field="' + it.id + '"' + down + '>' +
+        '<label>' + it.name + '</label>' +
+        '<input type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + ph + '">' +
+        '</div>';
+    }
+    fieldsEl.innerHTML = html;
+  })();
+
+  function applyAll() {
+    var url = urlFor(SC);
+    heroEl.classList.toggle('unset', !url);
+    $('hero-host').textContent = url ? hostOf(url) : 'Premi OK per impostare l\u2019indirizzo';
+    $('hero-pill').textContent = url ? 'Apri' : 'Configura';
+    for (var i = 0; i < APPS.length; i++) {
+      var el = rowEl.querySelector('[data-id="' + APPS[i].id + '"] .tile-host');
+      if (el) el.textContent = hostOf(urlFor(APPS[i]));
+    }
+  }
+
+  /* ================== Orologio e saluto ================== */
+  var lastTime = '', lastDate = '';
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function tick() {
+    var d = new Date();
+    var t = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (t !== lastTime) {
+      lastTime = t; $('time').textContent = t;
+      var h = d.getHours();
+      $('greet').textContent = h < 5 ? 'Buonanotte' : h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
+    }
+    var ds;
+    try { ds = new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).format(d); }
+    catch (e) { ds = d.toDateString(); }
+    ds = ds.charAt(0).toUpperCase() + ds.slice(1);
+    if (ds !== lastDate) { lastDate = ds; $('date').textContent = ds; }
+  }
+
+  /* ================== Toast ================== */
+  var toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2800);
+  }
+
+  /* ================== Focus / navigazione spaziale ================== */
+  var cur = null, lastTile = null, panelOpen = false, opener = null;
+
+  function scopeEl() { return panelOpen ? panelEl : appEl; }
+  function items() { return Array.prototype.slice.call(scopeEl().querySelectorAll('[data-focus]')); }
+
+  function setFocus(el) {
+    if (cur) cur.classList.remove('is-focus');
+    cur = el;
+    if (!el) return;
+    el.classList.add('is-focus');
+    if (!panelOpen && el !== heroEl && el.parentNode === rowEl) lastTile = el;
+    if (panelOpen && el.scrollIntoView) { try { el.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+  }
+
+  function move(dir) {
+    var list = items();
+    if (!cur || list.indexOf(cur) < 0) { setFocus(list[0]); return; }
+
+    var ov = cur.getAttribute('data-nav-' + dir);
+    if (ov) { var t = $(ov); if (t) { setFocus(t); return; } }
+    if (!panelOpen && dir === 'down' && cur === heroEl && lastTile) { setFocus(lastTile); return; }
+
+    var c = cur.getBoundingClientRect();
+    var cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+    var horiz = (dir === 'left' || dir === 'right');
+    var best = null, bestScore = Infinity;
+
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (el === cur) continue;
+      var r = el.getBoundingClientRect();
+      var rx = r.left + r.width / 2, ry = r.top + r.height / 2;
+      var prim, off, ovl;
+      if (horiz) {
+        if (dir === 'right' ? rx <= cx + 1 : rx >= cx - 1) continue;
+        prim = dir === 'right' ? r.left - c.right : c.left - r.right;
+        ovl = Math.min(r.bottom, c.bottom) - Math.max(r.top, c.top);
+        off = Math.abs(ry - cy);
+      } else {
+        if (dir === 'down' ? ry <= cy + 1 : ry >= cy - 1) continue;
+        prim = dir === 'down' ? r.top - c.bottom : c.top - r.bottom;
+        ovl = Math.min(r.right, c.right) - Math.max(r.left, c.left);
+        off = Math.abs(rx - cx);
+      }
+      if (prim < 0) prim = 0;
+      var score = (ovl > 0 ? 0 : 100000 + (-ovl) * 3) + prim + off * 0.1;
+      if (score < bestScore) { bestScore = score; best = el; }
+    }
+    if (best) setFocus(best);
+  }
+
+  /* ================== Azioni ================== */
+  function go(url) {
+    document.body.classList.add('leaving');
+    setTimeout(function () { window.location.href = url; }, 190);
+  }
+
+  function launch(id) {
+    var item = itemById(id);
+    if (!item) return;
+    var url = urlFor(item);
+    if (!url) {
+      openSettings('f-' + id);
+      toast('Imposta prima l\u2019indirizzo e premi Salva');
+      return;
+    }
+    go(url);
+  }
+
+  function fillFields(useDefaults) {
+    for (var i = 0; i < ALL.length; i++) {
+      var inp = $('f-' + ALL[i].id).querySelector('input');
+      inp.value = useDefaults ? (ALL[i].url || '') : (saved[ALL[i].id] || '');
+      if (!useDefaults && !saved[ALL[i].id]) inp.value = ALL[i].url || '';
+    }
+    // SC non ha default: se vuoto resta vuoto
+    if (useDefaults) $('f-sc').querySelector('input').value = '';
+  }
+
+  function openSettings(focusId) {
+    if (panelOpen) return;
+    opener = cur;
+    fillFields(false);
+    panelOpen = true;
+    overlayEl.classList.add('open');
+    overlayEl.setAttribute('aria-hidden', 'false');
+    panelEl.scrollTop = 0;
+    setFocus($(focusId || 'f-sc'));
+  }
+
+  function closeSettings() {
+    if (!panelOpen) return;
+    var ae = document.activeElement;
+    if (ae && ae.tagName === 'INPUT') ae.blur();
+    panelOpen = false;
+    overlayEl.classList.remove('open');
+    overlayEl.setAttribute('aria-hidden', 'true');
+    setFocus(opener && appEl.contains(opener) ? opener : heroEl);
+  }
+
+  function saveSettings() {
+    var next = {};
+    for (var i = 0; i < ALL.length; i++) {
+      var it = ALL[i];
+      var v = normalizeUrl($('f-' + it.id).querySelector('input').value);
+      if (v && v !== (it.url || '')) next[it.id] = v;
+    }
+    saved = next;
+    var ok = persist(next);
+    applyAll();
+    closeSettings();
+    toast(ok ? 'Impostazioni salvate' : 'Salvataggio non riuscito (storage non disponibile)');
+  }
+
+  function resetFields() {
+    fillFields(true);
+    toast('Valori predefiniti ripristinati: premi Salva per confermare');
+  }
+
+  function startEdit(inp) {
+    inp.focus();
+    inp.parentNode.classList.add('editing');
+    try { var n = inp.value.length; inp.setSelectionRange(n, n); } catch (e) {}
+  }
+
+  function activate(el) {
+    if (el.hasAttribute('data-field')) { startEdit(el.querySelector('input')); return; }
+    switch (el.getAttribute('data-id')) {
+      case 'settings': openSettings('f-sc'); break;
+      case 'b-save':   saveSettings(); break;
+      case 'b-reset':  resetFields(); break;
+      case 'b-cancel': closeSettings(); break;
+      default:         launch(el.getAttribute('data-id'));
+    }
+  }
+
+  /* ================== Tastiera / telecomando ================== */
+  function dirOf(e) {
+    var k = e.key, c = e.keyCode;
+    if (k === 'ArrowUp'    || k === 'Up'    || c === 38 || c === 19) return 'up';
+    if (k === 'ArrowDown'  || k === 'Down'  || c === 40 || c === 20) return 'down';
+    if (k === 'ArrowLeft'  || k === 'Left'  || c === 37 || c === 21) return 'left';
+    if (k === 'ArrowRight' || k === 'Right' || c === 39 || c === 22) return 'right';
+    return null;
+  }
+  function isOk(e) { return e.key === 'Enter' || e.keyCode === 13 || e.keyCode === 23; }
+  function isBack(e, editing) {
+    var k = e.key, c = e.keyCode;
+    if (k === 'Escape' || k === 'GoBack' || k === 'BrowserBack' || k === 'XF86Back') return true;
+    if (c === 27 || c === 4 || c === 10009) return true;
+    if ((k === 'Backspace' || c === 8) && !editing) return true;
+    return false;
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var ae = document.activeElement;
+    var editing = !!(ae && ae.tagName === 'INPUT');
+    var dir = dirOf(e), ok = isOk(e), back = isBack(e, editing);
+
+    if (editing) {
+      if (ok || back) { e.preventDefault(); ae.blur(); return; }
+      if (dir === 'up' || dir === 'down') { e.preventDefault(); ae.blur(); move(dir); }
+      return; // sinistra/destra e caratteri: comportamento normale del campo
+    }
+
+    if (dir) { e.preventDefault(); move(dir); return; }
+
+    if (ok) {
+      e.preventDefault();
+      if (!e.repeat && cur) activate(cur);
+      return;
+    }
+
+    if (back) {
+      if (panelOpen) { e.preventDefault(); closeSettings(); return; }
+      if (cur !== heroEl) { e.preventDefault(); setFocus(heroEl); return; }
+      // già sulla Hero: lascia gestire "Indietro" al browser
+    }
+  });
+
+  // Supporto mouse / touch (facoltativo)
+  document.addEventListener('click', function (e) {
+    var el = e.target;
+    while (el && el !== document && !(el.hasAttribute && el.hasAttribute('data-focus'))) el = el.parentNode;
+    if (!el || el === document) return;
+    if (panelOpen !== panelEl.contains(el)) return;
+    setFocus(el);
+    activate(el);
+  });
+  document.addEventListener('focusin', function (e) {
+    if (e.target && e.target.tagName === 'BUTTON') e.target.blur();
+  });
+  document.addEventListener('focusout', function (e) {
+    if (e.target && e.target.tagName === 'INPUT' && e.target.parentNode) {
+      e.target.parentNode.classList.remove('editing');
+    }
+  });
+
+  // Ritorno da un'altra pagina (tasto Indietro del browser)
+  window.addEventListener('pageshow', function () {
+    document.body.classList.remove('leaving');
+    tick();
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+
+  /* ================== Avvio ================== */
+  applyAll();
+  tick();
+  setInterval(tick, 1000);
+  setFocus(heroEl);
+  if (!urlFor(SC)) {
+    setTimeout(function () { toast('Premi OK su StreamingCommunity per impostare l\u2019indirizzo'); }, 700);
+  }
+})();
+</script>
+</body>
+</html>
